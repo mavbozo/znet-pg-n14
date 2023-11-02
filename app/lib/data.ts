@@ -29,3 +29,30 @@ export async function fetchQuestions(): Promise<IQuestion[]> {
     throw new Error("Failed to fetch revenue data.");
   }
 }
+
+type IQuestionResponse = {
+  questions: IQuestion[];
+};
+
+export async function fetchQuestionsAPI(): Promise<IQuestion[]> {
+  try {
+    // fetch the data from '/api/questions' with get method
+    const res = await fetch("/api/questions", {
+      method: "GET",
+    });
+
+    // if the response is not ok, throw error
+    if (!res.ok) {
+      throw new Error("Failed to fetch questions data.");
+    }
+
+    // convert the response to json
+    const data = (await res.json()) as IQuestionResponse;
+
+    // return the data
+    return data.questions;
+  } catch (error) {
+    console.error("API Error:", error);
+    throw new Error("Failed to fetch revenue data.");
+  }
+}
