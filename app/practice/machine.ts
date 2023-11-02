@@ -1,5 +1,5 @@
 import { createMachine } from "xstate";
-import { fetchQuestions } from "@/app/lib/data";
+import { fetchQuestionsAPI } from "@/app/lib/data";
 
 export interface QuestionType {
   id: string;
@@ -13,11 +13,11 @@ interface PracticeContext {
   questions: QuestionType[];
   currentQuestionIndex: number;
   score: number;
+  error?: string; // Optionally add an error property to the context
 }
 
 export const practiceMachine = createMachine<PracticeContext>(
   {
-    /** @xstate-layout N4IgpgJg5mDOIC5QAcBOBDAxgFwJabAFksALXAOzADpcIAbMAYgAUAlAQQGEAVASU4CiAfQDK3dq24CAIgG0ADAF1EKAPaxceVeRUgAHogCsAJgA0IAJ6IAnPIBsVW3eN351gByGALNeMBmAF8A8zQsPAJiTDJKKlCcfDAROA1tKgBHAFc4LXJpXFhkOnQLSEZ2ADkRAHUBVlEAVQAhQl5uKTklXWR1TVxtXQMEQz8Hazt3AHYvQ2sARnkfQztzKwQfWao7CbHrQ3lhk1nJoJCMeIjSCmo48MTkvvJ0rNgcvIKikohGcoEqoQBFeoCMS8ADy5SErAEgOB7QUyiQIG6GhyA0QkxWiDsdj8m22Uz2Xmm7j87hOSLOt0i0WulISSVgKUemWyDzehWKpTYXD4giEADFeOVeCIABIyeFdHqoxGDWZTBzyo4TTz7fzyPyYhDGKZULwTOyGCbyey+Kbkm4JalXWJ0ggMplPVnadkfLkcHj8YQAGQE-O4ksRyN6-VlRhGjnGBLmC12y0siAm2yosz8xnc8qm01JEwtdqIlxilvt91SsAyACMALb5JkCABu6DoGXQr3yHM+31+AKBIPBkOhvbhnSD0oeaKGEbGk2mMcW8dWfl2VGMLiN-mcez2ueCFLCVsLtP3JcZDyo5ertYeDabLbb705X25nr5guFYolI7UKPHYYQ8q8RUJmVVUTD8DUtSXLwqAmJdDE8WZZ3kWZDDzY8CyiG1izuU8y0rGtcPIG9m1bNl2zdJ8PV5H0-QDL8kTHUNQDlYxphgrxjCOHFgI8A0tUMFC9XcXYZyXVNjFQ3dsOtIt8wdM8GHQeswE4bQADNcFQKtSJdcjH0YX12AANWEThwUFVhCE-BFvxDHQ-wAoCQK3dVNQTBBDXcKhSXTFDplTeQDTQ84MJpW10Pk1JFOU1TyA0rSdNyPTO0MkyhE4CpBG9X0OhshifyY-REFmVjDHYzj3G42ZeIXLF4O89xfO8ATwKCqT8xko8QtYOAMjobBXX0n4-mfaiBxhMRrKlAr7OYowzHcjMqD2E19j2dwfBJIJd3IVQIDgLoOsPaa7InABaawtTOuxgqpQ8aHoMATplOb-12YxHGMHYtkmSZWK1bFoMAuxEN2Hx9lmWZboPTDZIi0tZvy06-yXSDApgtdsU8LwTS2G72vQzrwpCyLmWee8O0gZ7f1e4x5A++C6fAklDW8dwtQNMrxMqpM-CWXHoYuWGutuUnz3wq9tGIu8yIfT5qcKwYxg2aw-CmOZGrcOYFtWfUvP8MYcc41xxi8QXQqwuSEaoaKVPUzTtIpiiFcRuVpgZzxVY8I4-omAH6vcRqVWzVWVXNonsJ68t+sG+XRxmidqtcPUvvGRr9XlQOtR1CY9QNVw3AzJnDEkoIgA */
     context: {
       questions: [],
       currentQuestionIndex: 0,
@@ -29,30 +29,47 @@ export const practiceMachine = createMachine<PracticeContext>(
       idle: {
         on: {
           PRACTICE_STARTED: {
-            target: "practiceSession",
-            actions: {
-              type: "initializeQuiz",
-            },
+            target: "practiceSession.fetching",
           },
         },
       },
       practiceSession: {
-        initial: "questionDisplayed",
+        initial: "fetching",
         states: {
+          fetching: {
+            invoke: {
+              id: "fetchQuestions",
+              src: "fetchQuestionsService",
+              onDone: {
+                target: "questionDisplayed",
+                actions: "setQuestions",
+              },
+              onError: {
+                target: "fetchingError",
+                actions: "handleError",
+              },
+            },
+          },
+          fetchingError: {
+            on: {
+              RETRY_FETCH: {
+                target: "fetching",
+              },
+              CANCEL: {
+                target: "#practiceMachine.idle",
+              },
+            },
+          },
           questionDisplayed: {
             on: {
               ANSWER_SUBMITTED: {
                 target: "submissionEvaluationDisplayed",
-                actions: {
-                  type: "evaluateAnswer",
-                },
+                actions: "evaluateAnswer",
               },
               NEW_QUESTION_REQUESTED: {
                 target: "questionDisplayed",
                 cond: "hasMoreQuestions",
-                actions: {
-                  type: "incrementQuestionIndex",
-                },
+                actions: "incrementQuestionIndex",
               },
               PRACTICE_FINISHED: {
                 target: "#practiceMachine.practiceResultDisplayed",
@@ -63,16 +80,11 @@ export const practiceMachine = createMachine<PracticeContext>(
             },
           },
           submissionEvaluationDisplayed: {
-            exit: {
-              type: "updateScore",
-            },
             on: {
               NEW_QUESTION_REQUESTED: {
                 target: "questionDisplayed",
                 cond: "hasMoreQuestions",
-                actions: {
-                  type: "incrementQuestionIndex",
-                },
+                actions: "incrementQuestionIndex",
               },
               PRACTICE_FINISHED: {
                 target: "#practiceMachine.practiceResultDisplayed",
@@ -86,9 +98,7 @@ export const practiceMachine = createMachine<PracticeContext>(
             on: {
               LEAVE_CONFIRMED: {
                 target: "#practiceMachine.idle",
-                actions: {
-                  type: "resetQuiz",
-                },
+                actions: "resetQuiz",
               },
               LEAVE_CANCELLED: {
                 target: "questionDisplayed",
@@ -100,10 +110,8 @@ export const practiceMachine = createMachine<PracticeContext>(
       practiceResultDisplayed: {
         on: {
           NEW_PRACTICE_REQUESTED: {
-            target: "#practiceMachine.practiceSession.questionDisplayed",
-            actions: {
-              type: "resetQuiz",
-            },
+            target: "practiceSession.fetching",
+            actions: "resetQuiz",
           },
         },
       },
@@ -111,13 +119,15 @@ export const practiceMachine = createMachine<PracticeContext>(
     schema: {
       events: {} as
         | { type: "PRACTICE_STARTED" }
-        | { type: "ANSWER_SUBMITTED" }
+        | { type: "ANSWER_SUBMITTED"; answer: number }
         | { type: "NEW_QUESTION_REQUESTED" }
         | { type: "PRACTICE_FINISHED" }
         | { type: "PRACTICE_LEFT" }
         | { type: "LEAVE_CONFIRMED" }
         | { type: "LEAVE_CANCELLED" }
-        | { type: "NEW_PRACTICE_REQUESTED" },
+        | { type: "NEW_PRACTICE_REQUESTED" }
+        | { type: "RETRY_FETCH" }
+        | { type: "CANCEL" },
       context: {} as PracticeContext,
     },
     predictableActionArguments: true,
@@ -125,38 +135,46 @@ export const practiceMachine = createMachine<PracticeContext>(
   },
   {
     actions: {
-      updateScore: () => {},
+      setQuestions: (context, event) => {
+        context.questions = event.data;
+        context.error = undefined; // Reset the error if there was one before
+      },
 
-      initializeQuiz: async (context) => {
-        context.questions = await fetchQuestions(); // fetch from anything or API or etc
+      handleError: (context, event) => {
+        context.error = event.data; // Assume the error is in event.data; adjust as needed
       },
 
       evaluateAnswer: (context, event) => {
-        context.questions[context.currentQuestionIndex]["userAnswer"] =
-          event.answer;
-        if (
-          event.answer ===
-          context.questions[context.currentQuestionIndex].correctAnswer
-        ) {
-          context.score++;
+        if ("answer" in event) {
+          context.questions[context.currentQuestionIndex].userAnswer =
+            event.answer;
+          if (
+            event.answer ===
+            context.questions[context.currentQuestionIndex].correctAnswer
+          ) {
+            context.score++;
+          }
         }
       },
 
-      incrementQuestionIndex: (context, event) => {
+      incrementQuestionIndex: (context) => {
         context.currentQuestionIndex++;
       },
 
-      resetQuiz: (context, event) => {
+      resetQuiz: (context) => {
+        context.questions = [];
         context.score = 0;
         context.currentQuestionIndex = 0;
+        context.error = undefined;
       },
     },
-    services: {},
+    services: {
+      fetchQuestionsService: (context, event) => fetchQuestionsAPI(),
+    },
     guards: {
-      hasMoreQuestions: (context, event) => {
+      hasMoreQuestions: (context) => {
         return context.currentQuestionIndex < context.questions.length - 1;
       },
     },
-    delays: {},
   }
 );

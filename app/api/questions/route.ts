@@ -1,5 +1,5 @@
-import { sql } from '@vercel/postgres';
-import { NextResponse } from 'next/server';
+import { sql } from "@vercel/postgres";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   // Add noStore() here prevent the response from being cached.
@@ -18,14 +18,14 @@ export async function GET(request: Request) {
     console.log("Data fetch complete after 3 seconds.");
 
     // convert questions from database to IQuestion type
-    const result =  data.rows.map((row) => ({
+    const questions = data.rows.map((row) => ({
       id: row.id,
       text: row.text,
       options: row.options,
       correctAnswer: row.correct_answer,
     }));
 
-    return NextResponse.json({ result }, { status: 200 });
+    return NextResponse.json({ questions }, { status: 200 });
   } catch (error) {
     console.error("Database Error:", error);
     return NextResponse.json({ error }, { status: 500 });
