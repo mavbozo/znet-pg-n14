@@ -1,9 +1,9 @@
 import { createMachine } from "xstate";
-import { questions } from "@/app/lib/placeholder-data";
+import { fetchQuestions } from "@/app/lib/data";
 
 export interface QuestionType {
   id: string;
-  question: string;
+  text: string;
   options: string[];
   correctAnswer: number;
   userAnswer?: number;
@@ -125,10 +125,10 @@ export const practiceMachine = createMachine<PracticeContext>(
   },
   {
     actions: {
-      updateScore: (context, event) => {},
+      updateScore: () => {},
 
-      initializeQuiz: (context, event) => {
-        context.questions = questions; // fetch from anything or API or etc
+      initializeQuiz: async (context) => {
+        context.questions = await fetchQuestions(); // fetch from anything or API or etc
       },
 
       evaluateAnswer: (context, event) => {

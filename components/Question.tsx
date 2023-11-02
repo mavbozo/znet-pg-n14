@@ -1,9 +1,9 @@
 // components/Question.tsx
 import React, { useState } from "react";
-import { QuestionType } from "@/app/lib/placeholder-data";
+import { IQuestion } from "@/app/lib/definitions";
 
 interface QuestionProps {
-  data: QuestionType[];
+  data: IQuestion[];
   index: number;
   onSubmit: (selectedOption: number | null) => void;
   onFinish: () => void;
@@ -25,7 +25,7 @@ export const Question: React.FC<QuestionProps> = ({
 
   return (
     <div className="flex flex-col gap-4 transition-all">
-      <h2 className="text-lg">{data[index].question}</h2>
+      <h2 className="text-lg">{data[index].text}</h2>
       {data[index].options.map((option, idx) => (
         <div key={option}>
           <label
