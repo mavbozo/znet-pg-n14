@@ -1,5 +1,5 @@
-import { createMachine } from "xstate";
-import { fetchQuestions } from "@/app/lib/data";
+import { assign, createMachine } from "xstate";
+import { fetchQuestions } from "../../app/lib/data";
 
 export interface QuestionType {
   id: string;
@@ -30,22 +30,27 @@ export const practiceMachine = createMachine<PracticeContext>(
         on: {
           PRACTICE_STARTED: {
             target: "practiceSession",
-            actions: {
-              type: "initializeQuiz",
-            },
           },
         },
       },
       practiceSession: {
-        initial: "questionDisplayed",
+        initial: "fetchingQuestions",
         states: {
+          fetchingQuestions: {
+            invoke: {
+              src: "fetchQuestionsService",
+              onDone: {
+                target: "questionDisplayed",
+                actions: assign({
+                  questions: (context, event) => event.data,
+                }),
+              },
+            },
+          },
           questionDisplayed: {
             on: {
               ANSWER_SUBMITTED: {
-                target: "submissionEvaluationDisplayed",
-                actions: {
-                  type: "evaluateAnswer",
-                },
+                target: "evaluatingSubmission",
               },
               NEW_QUESTION_REQUESTED: {
                 target: "questionDisplayed",
@@ -59,6 +64,23 @@ export const practiceMachine = createMachine<PracticeContext>(
               },
               PRACTICE_LEFT: {
                 target: "leaveConfirmationDisplayed",
+              },
+            },
+          },
+          evaluatingSubmission: {
+            invoke: {
+              src: "evaluateSubmission",
+              onDone: {
+                target: "submissionEvaluationDisplayed",
+                actions: (context, event) => {
+                  let qs = context.questions;
+                  qs[context.currentQuestionIndex]["userAnswer"] =
+                    event.data.answer;
+                  return {
+                    questions: qs,
+                    score: event.data.score,
+                  };
+                },
               },
             },
           },
@@ -125,23 +147,6 @@ export const practiceMachine = createMachine<PracticeContext>(
   },
   {
     actions: {
-      updateScore: () => {},
-
-      initializeQuiz: async (context) => {
-        context.questions = await fetchQuestions(); // fetch from anything or API or etc
-      },
-
-      evaluateAnswer: (context, event) => {
-        context.questions[context.currentQuestionIndex]["userAnswer"] =
-          event.answer;
-        if (
-          event.answer ===
-          context.questions[context.currentQuestionIndex].correctAnswer
-        ) {
-          context.score++;
-        }
-      },
-
       incrementQuestionIndex: (context, event) => {
         context.currentQuestionIndex++;
       },
@@ -151,7 +156,25 @@ export const practiceMachine = createMachine<PracticeContext>(
         context.currentQuestionIndex = 0;
       },
     },
-    services: {},
+    services: {
+      fetchQuestionsService: async (context, event) => {
+        console.log("fetching questions...");
+        return fetchQuestions();
+      },
+      evaluateSubmission: async (context, event) => {
+        let newScore = context.score;
+        if (
+          event.answer ===
+          context.questions[context.currentQuestionIndex].correctAnswer
+        ) {
+          newScore = context.score + 1;
+        }
+        console.log("submission evaluated");
+        return new Promise((resolve, reject) => {
+          resolve({ score: newScore, answer: event.answer });
+        });
+      },
+    },
     guards: {
       hasMoreQuestions: (context, event) => {
         return context.currentQuestionIndex < context.questions.length - 1;

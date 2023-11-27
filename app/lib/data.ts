@@ -1,3 +1,5 @@
+"use server";
+
 import { sql } from "@vercel/postgres";
 import { IQuestion } from "./definitions";
 
@@ -9,14 +11,13 @@ export async function fetchQuestions(): Promise<IQuestion[]> {
     // Artificially delay a reponse for demo purposes.
     // Don't do this in real life :)
 
-    console.log("Fetching questions data...");
+    // console.log("Fetching questions data...");
     // await new Promise((resolve) => setTimeout(resolve, 3000));
 
     // we can be more strict with type by changing any to some type for rows in database
     const data = await sql<any>`SELECT * FROM questions limit 5`;
 
-    console.log("Data fetch complete after 3 seconds.");
-
+    // console.log("Data fetch complete after 3 seconds.");
     // convert questions from database to IQuestion type
     return data.rows.map((row) => ({
       id: row.id,
@@ -26,6 +27,6 @@ export async function fetchQuestions(): Promise<IQuestion[]> {
     }));
   } catch (error) {
     console.error("Database Error:", error);
-    throw new Error("Failed to fetch revenue data.");
+    throw new Error("Failed to fetch questions.");
   }
 }

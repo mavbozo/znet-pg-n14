@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "seed": "node -r dotenv/config ./scripts/seed.js"
+    "seed": "node -r dotenv/config ./scripts/seed.js",
+    "test:watch": "jest --watch"
   },
   "dependencies": {
     "@vercel/postgres": "^0.5.1",
@@ -19,16 +20,24 @@
     "xstate": "^4.38.3"
   },
   "devDependencies": {
+    "@babel/core": "^7.23.2",
+    "@babel/preset-env": "^7.23.2",
+    "@babel/preset-typescript": "^7.23.2",
+    "@jest/globals": "^29.7.0",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@xstate/test": "^0.5.1",
     "autoprefixer": "^10.0.1",
+    "babel-jest": "^29.7.0",
     "dotenv": "^16.3.1",
     "eslint": "^8",
     "eslint-config-next": "14.0.1",
+    "jest": "^29.7.0",
     "postcss": "^8",
     "prettier": "3.0.3",
     "tailwindcss": "^3.3.0",
+    "ts-jest": "^29.1.1",
     "typescript": "^5"
   },
   "volta": {
