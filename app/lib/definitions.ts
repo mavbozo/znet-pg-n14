@@ -8,5 +8,9 @@ export interface IQuestion {
   id: string;
   text: string;
   options: string[];
+}
+
+export interface ISubmissionResult {
+  correct: boolean;
   correctAnswer: number;
 }

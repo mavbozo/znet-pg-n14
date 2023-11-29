@@ -1,5 +1,5 @@
 import { assign, createMachine } from "xstate";
-import { fetchQuestions } from "../../app/lib/data";
+import { fetchQuestions, evaluateSubmission } from "../../app/lib/data";
 
 export interface QuestionType {
   id: string;
@@ -69,11 +69,13 @@ export const practiceMachine = createMachine<PracticeContext>(
           },
           evaluatingSubmission: {
             invoke: {
-              src: "evaluateSubmission",
+              src: "evaluateSubmissionService",
               onDone: {
                 target: "submissionEvaluationDisplayed",
                 actions: (context, event) => {
                   let qs = context.questions;
+                  qs[context.currentQuestionIndex]["correctAnswer"] =
+                    event.data.correctAnswer;
                   qs[context.currentQuestionIndex]["userAnswer"] =
                     event.data.answer;
                   return {
@@ -161,17 +163,24 @@ export const practiceMachine = createMachine<PracticeContext>(
         console.log("fetching questions...");
         return fetchQuestions();
       },
-      evaluateSubmission: async (context, event) => {
+      evaluateSubmissionService: async (context, event) => {
         let newScore = context.score;
-        if (
-          event.answer ===
-          context.questions[context.currentQuestionIndex].correctAnswer
-        ) {
+        let submissionResult = await evaluateSubmission(
+          event.answer,
+          context.questions[context.currentQuestionIndex].id
+        );
+        if (submissionResult.correct) {
           newScore = context.score + 1;
+        } else {
+          newScore = context.score;
         }
         console.log("submission evaluated");
         return new Promise((resolve, reject) => {
-          resolve({ score: newScore, answer: event.answer });
+          resolve({
+            score: newScore,
+            answer: event.answer,
+            correctAnswer: submissionResult.correctAnswer,
+          });
         });
       },
     },
